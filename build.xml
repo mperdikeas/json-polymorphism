@@ -1,0 +1,158 @@
+<project
+    xmlns:contrib="http://net.sf.antcontrib"
+    xmlns:ivy="antlib:org.apache.ivy.ant"
+    name="foo" basedir="." default="run">
+    <taskdef uri="http://net.sf.antcontrib" resource="net/sf/antcontrib/antlib.xml" classpath="${basedir}/tools/ant-contrib-1.0b3.jar" />
+
+    <property name="project.MainClass.name" value="Test"/>
+    <property name="project.distname"       value="${ant.project.name}"/>
+    <property name="jar-artefact.name"      value="${ant.project.name}.jar"/>
+    <property name="build.dir"              value="${basedir}/build"/>
+    <property name="dist.dir"               value="${basedir}/dist"/>
+    <property name="dist-runnable.dir"      value="${basedir}/dist-runnable"/>
+    <property name="jar-artefact"           value="${dist.dir}/${jar-artefact.name}"/>
+    <property name="src.dir"                value="${basedir}/src"/>
+    <property name="javasource.dir"         value="${src.dir}"/>
+    <property name="compilelibs.dir"        value="${basedir}/lib-compile"/>
+    <property name="ivylibs.dir"            value="${basedir}/lib-ivy"/>
+    <property name="runtimelibs.dir"        value="${basedir}/lib-runtime"/>
+    <property name="run-app.script.name"    value="run-app"/>
+
+
+
+    <path id = "compile.classpath">
+      <fileset dir="${compilelibs.dir}">
+        <include name ="*.jar"/>
+      </fileset>
+      <fileset dir="${ivylibs.dir}">
+        <include name ="*.jar"/>
+      </fileset>
+    </path>
+
+
+<target name="test-ivy" description="Test ivy installation">
+    <ivy:settings />
+</target>
+
+<target name="resolve" depends="test-ivy" description="resolve and retrieve dependencies with ivy">
+    <ivy:resolve/>  
+    <ivy:retrieve sync="true" type="jar" pattern="${ivylibs.dir}/[artifact]-[revision](-[classifier]).[ext]"/> 
+</target>
+
+
+
+    <target name="prepare">
+        <tstamp/>
+        <mkdir dir="${ivylibs.dir}"/>
+    </target>
+
+
+    <target name="compile" depends="prepare, resolve, dry-compile" description="Compile java sources"/>
+
+    <target name="dry-compile" 
+            description="dry compile without IVY deps resolve and wsgen">
+        <mkdir  dir="${build.dir}"/>
+        <property name="classpath-comp.msg" refid="compile.classpath"/>
+        <echo message="compiling with classpath = ${classpath-comp.msg}"/>
+        <javac srcdir="${javasource.dir}" 
+               destdir="${build.dir}"
+               source="1.7"
+               target="1.7"
+               debug="true"
+               >
+            <include name="**/*.java"/>
+            <classpath refid="compile.classpath"/>
+            <compilerarg line="-encoding utf-8 -Xlint:unchecked -Xlint:cast -Xlint:deprecation -Xlint:divzero -Xlint:empty -Xlint:fallthrough -Xlint:finally -Xlint:overrides -Xlint:serial"/>
+        </javac>
+	<copy todir="${build.dir}">
+            <fileset dir="${javasource.dir}">
+	        <exclude name="**/*.java"/>
+            </fileset>
+        </copy>
+    </target>
+
+
+    <target name="jar" depends="compile"
+            description="jar class files">
+      <mkdir  dir="${dist.dir}"/>
+      <jar destfile="${dist.dir}/${project.distname}.jar"
+           basedir="${build.dir}"
+      />
+    </target>
+
+    <target name="dry-jar" depends="dry-compile"
+            description="jar class files">
+      <mkdir  dir="${dist.dir}"/>
+      <jar destfile="${dist.dir}/${project.distname}.jar"
+           basedir="${build.dir}"
+      />
+    </target>
+
+    <target name="clean-ivy" description="clean IVY">
+      <delete dir ="${ivylibs.dir}"/>
+    </target>
+
+    <target name="clean-except-ivy"
+            description="Prepare for clean build (except for IVY deps)">
+      <delete dir ="${build.dir}"/>
+      <delete dir ="${dist.dir}"/>
+      <delete dir ="${dist-runnable.dir}"/>
+    </target>
+
+
+    <target name="clean"
+            depends="clean-except-ivy, clean-ivy"
+            description="Prepare for clean build (including IVY deps)">
+    </target>
+
+    <target name="cclean"
+            depends="clean"
+            description="clean dependencies as well">
+    </target>
+
+
+    <path id = "run.classpath">
+        <path refid="compile.classpath"/>
+        <pathelement path = "${jar-artefact}"/>
+        <fileset dir="${runtimelibs.dir}">
+          <include name ="*.jar"/>
+        </fileset>
+    </path>
+
+    <macrodef name="run-generic">
+        <attribute name="paranoid" />
+        <sequential>
+            <contrib:if>
+                <equals arg1="@{paranoid}" arg2="true" />
+                <then>
+                    <echo message="removing ${build.dir} folder to be sure we run from the jar"/>
+                    <delete dir="${build.dir}"/>
+                </then> 
+            </contrib:if>
+        <property name="classpath-run.msg" refid="run.classpath"/>
+        <echo message="ant.java.version=${ant.java.version}" />
+        <echo message="running the app with classpath = ${classpath-run.msg}"/>
+        <java classname ="${project.MainClass.name}" fork="true">
+             <jvmarg value="-Xmx1024m"/>
+             <classpath refid="run.classpath"/>
+        </java>
+        </sequential>
+    </macrodef>
+
+    <target name="run" depends="jar" description="run the jared application">
+        <run-generic paranoid="false"/>
+    </target>
+
+    <target name="dry-run" depends="dry-jar" description="run the jared application">
+        <run-generic paranoid="false"/>
+    </target>
+
+    <target name="run-paranoid" depends="jar" description="run the jared application (paranoid mode)">
+        <run-generic paranoid="true"/>
+    </target>
+
+    <target name="rejar" depends="clean,jar" description="clean and jar anew"/>
+
+
+
+</project>
