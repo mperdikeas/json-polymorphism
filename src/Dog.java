@@ -1,6 +1,6 @@
 public class Dog implements IAnimal {
 
-    public String name;
+asdf asd    public String name;
     public int ferocity;
 
 
