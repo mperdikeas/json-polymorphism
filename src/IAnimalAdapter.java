@@ -21,7 +21,7 @@ public class IAnimalAdapter implements JsonSerializer<IAnimal>, JsonDeserializer
                                  JsonSerializationContext context) {
 
     JsonObject retValue = new JsonObject();
-    String className = src.getClass().getCanonicalName();
+    String className = src.getClass().getName();
     retValue.addProperty(CLASSNAME, className);
     JsonElement elem = context.serialize(src); 
     retValue.add(INSTANCE, elem);
